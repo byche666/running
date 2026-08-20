@@ -43,3 +43,18 @@ interface would reduce friction and input errors. Ideas:
   delete them directly from the interface
 - managing Garmin credentials (email/password/MFA) through a form instead
   of a terminal prompt or environment variables
+
+## VMA-based automatic pace calculation
+
+Let the user set their VMA (maximal aerobic speed) as a fixed parameter so
+the tool can automatically derive the target pace(s) for a session instead
+of requiring paces to be typed out by hand every time. Ideas:
+
+- store the VMA somewhere reusable across sessions (env var, config file, or
+  passed as a CLI/skill parameter) instead of asking for it in each prompt
+- support describing a block by percentage of VMA ("90% VMA", "105% VMA")
+  and convert that into a `mm:ss/km` pace range
+- keep manually specified paces as an override: VMA-based calculation should
+  only kick in when no explicit pace is given for a block
+- clarify rounding/tolerance rules (e.g. +/-3 to 5 sec/km band) consistently
+  with the existing pace-target conversion rules
