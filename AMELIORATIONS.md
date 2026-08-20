@@ -27,3 +27,18 @@ Etendre le support au velo impliquerait :
   restent valables, mais les unites de duree/distance/cible changent)
 - generaliser le script pour choisir le sport en parametre plutot que de le
   coder en dur
+
+## Creation d'une interface pour ameliorer l'ergonomie du skill
+
+Aujourd'hui l'utilisation passe par la conversation avec Claude et l'execution
+de scripts en ligne de commande (JSON manuel, `python3 push_workout.py ...`).
+Une interface reduirait la friction et les erreurs de saisie. Pistes :
+
+- une page web simple (formulaire) pour construire une seance visuellement
+  (blocs, allures, repetitions) sans ecrire de JSON a la main
+- un apercu de la seance avant envoi (recapitulatif duree/distance/allures,
+  eventuellement un graphique du profil d'allure)
+- une liste des seances deja envoyees/programmees, avec possibilite de les
+  modifier ou de les supprimer directement depuis l'interface
+- gestion des identifiants Garmin (email/mot de passe/MFA) via un formulaire
+  plutot qu'un prompt terminal ou des variables d'environnement
