@@ -94,16 +94,16 @@ def build_target(target):
     if ttype == "pace":
         lo, hi = sorted([pace_to_mps(target["low"]), pace_to_mps(target["high"])])
         return {
-            "workoutTargetTypeId": TargetType.SPEED_ZONE,
+            "workoutTargetTypeId": TargetType.SPEED,
             "workoutTargetTypeKey": "speed.zone",
-            "displayOrder": TargetType.SPEED_ZONE,
+            "displayOrder": TargetType.SPEED,
         }, lo, hi
     elif ttype == "hr":
         lo, hi = sorted([int(target["low"]), int(target["high"])])
         return {
-            "workoutTargetTypeId": TargetType.HEART_RATE_ZONE,
+            "workoutTargetTypeId": TargetType.HEART_RATE,
             "workoutTargetTypeKey": "heart.rate.zone",
-            "displayOrder": TargetType.HEART_RATE_ZONE,
+            "displayOrder": TargetType.HEART_RATE,
         }, float(lo), float(hi)
     else:
         raise ValueError(f"Type de cible non supporte: '{ttype}'")
