@@ -22,6 +22,18 @@ prompt sent to Claude, the generated JSON, and the result on Garmin Connect).
   scheduled on a specific date with `--schedule`.
 - Only the **Running** sport is supported.
 
+### Warm-up / cool-down default
+
+For a normal running session, the standard layout is usually:
+
+1. warm-up at the start
+2. main block in the middle
+3. cool-down at the end
+
+If the user does not specify warm-up/cool-down, you may suggest adding them in
+this standard order. But do not invent them for specialized workouts, test
+sessions, or any workout where the user clearly does not want them.
+
 An offline fallback (`scripts/generate_tcx.py`) generates a plain `.tcx` file
 if you don't have network access — but this file **cannot** be imported as a
 future session through the Garmin Connect web interface (file import there is

@@ -13,6 +13,8 @@ Puis, dans le même fil :
 
 > ajoute aussi dans Garmin connect
 
+> Par défaut, ajoute un échauffement en début de séance et un retour au calme en fin de séance si ce n'est pas précisé autrement.
+
 ## 2. JSON généré par Claude
 
 ```json

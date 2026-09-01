@@ -1,156 +1,182 @@
 ---
 name: garmin-workout-push
 description: >
-  Cree une seance de course a pied structuree et l'envoie DIRECTEMENT sur le
-  compte Garmin Connect de l'utilisateur via l'API (script push_workout.py),
-  disponible immediatement dans la bibliotheque d'entrainements et
-  synchronisable sur la montre. Utilise ce skill des que l'utilisateur
-  decrit une seance de course a pied (fractionne, allure specifique,
-  endurance, echauffement / bloc principal / retour au calme, "5x1km", zones
-  d'allure ou de FC) et veut la creer sur Garmin, meme sans dire "API",
-  "script" ou "push" — ex: "envoie cette seance sur mon Garmin", "cree ma
-  seance de demain sur Garmin Connect". Necessite un acces reseau et Python
-  (Claude Code, terminal local) -- ne fonctionne pas en environnement
-  sandboxe sans internet. Peut aussi generer un .tcx telechargeable en
-  alternative (moins pratique : non importable comme seance future sur
-  Garmin Connect).
+  Creates a structured running workout and sends it DIRECTLY to the user's
+  Garmin Connect account via the API (script push_workout.py), available
+  immediately in the training library and syncable to the watch. Use this skill
+  whenever the user describes a running workout (intervals, specific pace,
+  endurance, warm-up / main block / cool-down, "5x1km", pace or HR zones) and
+  wants it created on Garmin, even without explicitly saying "API",
+  "script", or "push" — e.g. "send this session to my Garmin",
+  "create my workout for tomorrow on Garmin Connect". Requires network access
+  and Python (Claude Code, local terminal) -- it does not work in a sandboxed
+  environment without internet. It can also generate a downloadable .tcx as an
+  alternative (less practical: not importable as a future workout in Garmin
+  Connect).
 ---
 
 # Garmin Workout Push
 
-Cree des seances de course a pied structurees et les envoie **directement dans
-le compte Garmin Connect** de l'utilisateur via l'API non-officielle
-`garminconnect` (methode validee et testee en conditions reelles). C'est la
-methode preferee : contrairement a un import de fichier TCX/FIT (non supporte
-par l'interface web de Garmin Connect pour les seances futures), le push API
-cree la seance directement dans la bibliotheque d'entrainements, prete a etre
-envoyee sur la montre.
+Creates structured running workouts and sends them **directly to the user's
+Garmin Connect account** via the unofficial `garminconnect` API (a method that
+has been validated and tested in real conditions). This is the preferred
+approach: unlike importing a TCX/FIT file (not supported by the Garmin Connect
+web interface for future workouts), the API push creates the workout directly
+in the training library, ready to be sent to the watch.
 
-Seul le sport **Running** est gere par ce skill.
+Only the **Running** sport is supported by this skill.
 
-**Prerequis obligatoire** : un environnement avec acces reseau sortant et
-Python (Claude Code en local, terminal). Ne fonctionne pas dans un
-environnement sandboxe sans acces internet (ex: claude.ai sans acces reseau).
-Si l'environnement actuel n'a pas d'acces reseau, prevenir l'utilisateur et,
-si pertinent, proposer de generer un fichier `.tcx` a la place via
-`scripts/generate_tcx.py` (voir section "Alternative sans acces reseau").
+**Mandatory prerequisites**: an environment with outbound network access and
+Python (Claude Code locally, terminal). It does not work in a sandboxed
+environment without internet access (for example, claude.ai without network
+access). If the current environment does not have network access, warn the user
+and, if relevant, offer to generate a `.tcx` file instead via
+`scripts/generate_tcx.py` (see section "Alternative without network access").
 
-## Workflow (methode principale : push API)
+## Workflow (main method: API push)
 
-1. **Verifier les dependances** : s'assurer que la librairie est installee.
+1. **Check dependencies**: ensure the library is installed.
    ```bash
    pip install --upgrade "garminconnect[workout]" curl_cffi
    ```
 
-2. **Comprendre la seance** decrite en langage naturel et la traduire en JSON
-   selon le schema ci-dessous (identique pour TCX et push API, pour rester
-   coherent).
+2. **Ask once for the default preference**: at the start of the first relevant
+   interaction, ask the user whether they want a standard warm-up and/or
+   cool-down added by default for future normal running sessions. Save the
+   choice in `.garmin-workout-preferences.json` in the repo root. If the user
+   says yes, store `"default_add_warmup_cooldown": true` and suggested time
+   values; if they say no, store `false` and do not add them automatically.
 
-3. **Ecrire ce JSON dans un fichier temporaire** (ex: `/tmp/workout.json` ou
-   `workout.json` dans le repertoire de travail).
+3. **Check the persistent preference file**: before asking a workout-specific
+   question, read `.garmin-workout-preferences.json`. If
+   `default_add_warmup_cooldown` is `true`, use that default automatically and
+   do not ask again unless the user overrides it. If the file is missing or the
+   value is `false`, ask the user whether to include a standard warm-up and/or
+   cool-down for this session.
 
-4. **Executer le script de push** :
+4. **Understand the workout** described in natural language and translate it to
+   JSON according to the schema below (same for TCX and API push, to stay
+   consistent).
+
+5. **Write this JSON to a temporary file** (for example, `/tmp/workout.json` or
+   `workout.json` in the working directory).
+
+4. **Run the push script**:
    ```bash
    python3 scripts/push_workout.py workout.json
    ```
-   Optionnellement, ajouter `--schedule YYYY-MM-DD` pour programmer la seance
-   a une date precise directement.
+   Optionally add `--schedule YYYY-MM-DD` to schedule the workout for a specific
+   date directly.
 
-   Au premier lancement, le script demande l'email et le mot de passe Garmin
-   Connect (et un code MFA si configure) de maniere interactive, sauf si les
-   variables d'environnement `GARMIN_EMAIL` et `GARMIN_PASSWORD` sont deja
-   definies. Les tokens de session sont ensuite mis en cache dans
-   `~/.garminconnect` : les lancements suivants n'auront normalement pas
-   besoin de redemander les identifiants (sauf expiration du token de
-   rafraichissement, rare).
+   On the first run, the script asks for the Garmin Connect email and password
+   (and an MFA code if configured) interactively, unless the
+   `GARMIN_EMAIL` and `GARMIN_PASSWORD` environment variables are already set.
+   Session tokens are then cached in `~/.garminconnect`: subsequent runs usually
+   will not need to ask again for credentials, except when the refresh token has
+   expired (rare).
 
-5. **Confirmer a l'utilisateur** : le script affiche un lien direct vers la
-   seance sur Garmin Connect (`https://connect.garmin.com/modern/workout/<id>`).
-   Partager ce lien et resumer en une ou deux phrases la structure de la
-   seance envoyee (temps/distances, allures cibles) pour verification rapide.
+5. **Confirm with the user**: the script prints a direct link to the workout in
+   Garmin Connect (`https://connect.garmin.com/modern/workout/<id>`). Share that
+   link and summarize in one or two sentences the structure of the workout sent
+   (time/distances, target paces) for a quick verification.
 
-## Regles de conversion (langage naturel -> JSON)
+## Conversion rules (natural language -> JSON)
 
-Voir le schema complet et des exemples dans `scripts/push_workout.py`
-(docstring en tete de fichier). Rappel des points cles :
+See the complete schema and examples in `scripts/push_workout.py`
+(header docstring). Key reminders:
 
-- **Echauffement / retour au calme** : `intensity: "Warmup"` / `"Cooldown"`.
-  Duree en temps (`{"type": "time", "seconds": ...}`) ou distance
-  (`{"type": "distance", "meters": ...}`) selon ce que l'utilisateur donne.
+- **Warm-up / cool-down**: `intensity: "Warmup"` / `"Cooldown"`.
+  Duration in time (`{"type": "time", "seconds": ...}`) or distance
+  (`{"type": "distance", "meters": ...}`) depending on what the user gives.
 
-- **Repetitions** ("5x1km", "10 fois 400m") -> noeud `{"type": "repeat",
+- **Standard running workout structure**: for a normal running session, the
+  expected order is generally: `Warmup` at the start, main block, then
+  `Cooldown` at the end. If the user does not specify warm-up/cool-down, the
+  skill should check `.garmin-workout-preferences.json` first. If
+  `default_add_warmup_cooldown` is set to `true`, it can apply the stored
+  default without re-asking. Otherwise, it must ask whether they want those
+  blocks added before creating the workout. It may propose adding them in the
+  standard way, but it must never invent them without confirmation if the
+  session is a test, VMA block, or a specialized workout that does not need
+  them. If in doubt, ask for clarification or offer options such as: "Add a
+  10-15 min warm-up and 5-10 min cool-down", "Only include the main block",
+  or "Use my own warm-up/cool-down values".
+
+- **Persistent default preference**: store the user's choice in
+  `.garmin-workout-preferences.json` using a boolean such as
+  `"default_add_warmup_cooldown": true` and optional minute values for the
+  default warm-up and cooldown. The skill should reuse this file across runs so
+  it does not ask the same question repeatedly unless the user changes the
+  preference.
+
+- **Repetitions** ("5x1km", "10 x 400m") -> node `{"type": "repeat",
   "repetitions": N, "children": [...]}`.
 
-- **Allures** en "mm:ss/km" -> `{"type": "pace", "low": "...", "high": "..."}`.
-  L'ordre low/high n'importe pas (trie automatiquement). Si une seule allure
-  est donnee sans fourchette, creer une petite fourchette symetrique de +/-3
-  a 5 secondes/km, et le signaler dans le resume final a l'utilisateur.
+- **Paces** in "mm:ss/km" -> `{"type": "pace", "low": "...", "high": "..."}`.
+  The order of low/high does not matter (it is sorted automatically). If only a
+  single pace is given without a range, create a small symmetric range of +/-3
+  to 5 seconds/km and state this in the final summary to the user.
 
-- **Frequence cardiaque** -> `{"type": "hr", "low": bpm, "high": bpm}`.
+- **Heart rate** -> `{"type": "hr", "low": bpm, "high": bpm}`.
 
-- **Recuperation** ("2min recup", "recup trot") -> `intensity: "Resting"`,
-  duree en temps le plus souvent. Si l'allure de recup n'est pas precisee,
-  utiliser une fourchette large/lente par defaut (ex: 6:00-7:00/km) et le
-  signaler.
+- **Recovery** ("2 min recovery", "easy jog recovery") -> `intensity: "Resting"`,
+  usually with a time duration. If the recovery pace is not specified, use a
+  broad and easy default range (for example, 6:00-7:00/km) and mention it.
 
-- **Pas de cible donnee** pour un bloc -> `{"type": "none"}`. Ne jamais
-  inventer une allure precise non mentionnee par l'utilisateur.
+- **No target given** for a block -> `{"type": "none"}`. Never invent a pace
+  that was not mentioned by the user.
 
-- **Duree/distance non fixee** ("cours jusqu'a ce que tu sois pret") ->
-  `{"type": "open"}` (etape validee manuellement sur la montre).
+- **Unspecified duration/distance** ("run until you are ready") ->
+  `{"type": "open"}` (step validated manually on the watch).
 
-## Exemple complet
+## Complete example
 
-Entree utilisateur :
-> "Echauffement 15min a 4:20, 5x1km a 3:38-3:42/km avec 1min30 recup trot,
-> retour au calme 3km"
+User input:
+> "Warm-up 15 min at 4:20, 5x1km at 3:38-3:42/km with 1 min 30 sec easy jog
+> recovery, cool-down 3km"
 
 ```json
 {
-  "name": "Seance allure specifique",
+  "name": "Specific pace workout",
   "steps": [
-    {"type": "step", "name": "Echauffement", "intensity": "Warmup",
+    {"type": "step", "name": "Warm-up", "intensity": "Warmup",
      "duration": {"type": "time", "seconds": 900},
      "target": {"type": "pace", "low": "4:25", "high": "4:15"}},
     {"type": "repeat", "repetitions": 5, "children": [
-      {"type": "step", "name": "1 km allure specifique", "intensity": "Active",
+      {"type": "step", "name": "1 km specific pace", "intensity": "Active",
        "duration": {"type": "distance", "meters": 1000},
        "target": {"type": "pace", "low": "3:42", "high": "3:38"}},
-      {"type": "step", "name": "Recuperation trot", "intensity": "Resting",
+      {"type": "step", "name": "Easy jog recovery", "intensity": "Resting",
        "duration": {"type": "time", "seconds": 90},
        "target": {"type": "pace", "low": "7:00", "high": "6:00"}}
     ]},
-    {"type": "step", "name": "Retour au calme", "intensity": "Cooldown",
+    {"type": "step", "name": "Cool-down", "intensity": "Cooldown",
      "duration": {"type": "distance", "meters": 3000},
      "target": {"type": "pace", "low": "5:30", "high": "5:00"}}
   ]
 }
 ```
 
-## Alternative sans acces reseau
+## Alternative without network access
 
-Si l'environnement d'execution n'a pas d'acces internet (impossible
-d'installer des paquets ou d'appeler l'API Garmin), utiliser
-`scripts/generate_tcx.py` a la place pour produire un fichier `.tcx`
-telechargeable. Prevenir clairement l'utilisateur que ce fichier ne pourra
-**pas** etre importe comme seance future via l'interface web de Garmin
-Connect (l'import de fichiers y est reserve aux activites deja enregistrees
-et aux parcours) ; seule une copie manuelle en `.FIT` sur la montre par USB,
-ou une saisie manuelle dans le createur de seances Garmin Connect,
-fonctionnent avec un simple fichier.
+If the execution environment does not have internet access (making it impossible
+install packages or call the Garmin API), use `scripts/generate_tcx.py` instead
+to produce a downloadable `.tcx` file. Clearly warn the user that this file
+cannot be imported as a future workout via the Garmin Connect web interface
+(file import is reserved for already-recorded activities and routes); only a
+manual copy as `.FIT` to the watch via USB, or manual entry in the Garmin Connect
+workout creator, works with a simple file.
 
-## Points d'attention
+## Cautions
 
-- Ne jamais inventer de valeurs (allure, distance, duree, FC) non fournies ou
-  deductibles du contexte : demander une clarification plutot que deviner.
-- Apres un push reussi, ne pas rouvrir/re-sauvegarder la seance dans
-  l'editeur web Garmin Connect avant verification sur la montre : l'editeur
-  web peut mal afficher/interpreter la cible d'allure ("Pas de cible" alors
-  que les valeurs sont bien presentes) et une sauvegarde depuis cet etat
-  pourrait ecraser la cible reelle. Les donnees stockees via l'API sont
-  fiables ; c'est uniquement l'affichage de l'editeur web qui peut induire en
-  erreur.
-- Si `client.login()` echoue de maniere repetee (MFA, mot de passe expire,
-  compte verrouille), ne jamais demander explicitement le mot de passe en
-  clair dans la conversation : l'utilisateur doit le saisir lui-meme dans le
-  prompt interactif du terminal.
+- Never invent values (pace, distance, duration, HR) that are not provided or
+  inferable from context: ask for clarification instead of guessing.
+- After a successful push, do not reopen/re-save the workout in the Garmin
+  Connect web editor before verifying it on the watch: the web editor can
+  misdisplay/misinterpret the pace target ("No target" even though the values
+  are present), and saving from that state could overwrite the real target. The
+  data stored through the API is reliable; only the web editor display can be
+  misleading.
+- If `client.login()` fails repeatedly (MFA, expired password, locked account),
+  never explicitly ask for the password in plain text in the conversation: the
+  user must enter it themselves in the interactive terminal prompt.
