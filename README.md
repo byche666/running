@@ -2,6 +2,8 @@
 
 This repository contains a Claude Code skill for creating structured running workouts and sending them directly to Garmin Connect.
 
+This skill is intended to work in VS Code, including the VS Code environment where the skill can be used alongside GitHub Copilot or other supported tooling.
+
 ## What is in this repo
 
 - [skills/garmin-workout-push](skills/garmin-workout-push) — the main skill package
